@@ -6,43 +6,69 @@
 //
 
 import SwiftUI
+import PDFKit
 
 struct ContentView: View {
+    @State private var pdfData: Data? = nil
+    @State private var showingShareSheet = false
+    
     var body: some View {
         VStack {
-            Text("Hello, World!")
-                .padding()
-            Button("Generate PDF") {
-                generatePDF()
+            Button(action: {
+                self.createPDF()
+                self.showingShareSheet = true
+            }) {
+                Text("Generate PDF and Share")
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
             }
+            .sheet(isPresented: $showingShareSheet, content: {
+                if let pdfData = self.pdfData {
+                    ShareSheet(activityItems: [pdfData])
+                }
+            })
         }
     }
     
-    func generatePDF() {
-        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 200, height: 100))
-        let data = renderer.pdfData { ctx in
-            ctx.beginPage()
+    func createPDF() {
+        let pdfMetaData = [
+            kCGPDFContextCreator: "My App",
+            kCGPDFContextAuthor: "My Name",
+            kCGPDFContextTitle: "Hello World PDF"
+        ]
+        let format = UIGraphicsPDFRendererFormat()
+        format.documentInfo = pdfMetaData as [String: Any]
+        
+        let pageWidth = 8.5 * 72.0
+        let pageHeight = 11 * 72.0
+        let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
+        
+        let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
+        
+        pdfData = renderer.pdfData { (context) in
+            context.beginPage()
+            
+            let text = "Hello World"
             let attributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 24)
+                .font: UIFont.systemFont(ofSize: 72),
+                .foregroundColor: UIColor.black
             ]
-            let text = "Hello, World!"
-            text.draw(at: CGPoint(x: 50, y: 50), withAttributes: attributes)
+            let textRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
+            text.draw(in: textRect, withAttributes: attributes)
         }
-        
-        savePDF(data: data)
+    }
+}
+
+struct ShareSheet: UIViewControllerRepresentable {
+    var activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
     }
     
-    func savePDF(data: Data) {
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let fileURL = documentsURL.appendingPathComponent("hello_world.pdf")
-        
-        do {
-            try data.write(to: fileURL)
-            print("PDF saved:", fileURL)
-        } catch {
-            print("Error saving PDF:", error.localizedDescription)
-        }
-    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 struct ContentView_Previews: PreviewProvider {
